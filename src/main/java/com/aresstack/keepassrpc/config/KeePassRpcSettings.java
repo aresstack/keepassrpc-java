@@ -1,0 +1,126 @@
+package com.aresstack.keepassrpc.config;
+
+import java.io.File;
+
+/**
+ * Store only the settings required by the KeePassRPC configuration and pairing UI.
+ */
+public class KeePassRpcSettings {
+    public static final String DEFAULT_RPC_HOST = "127.0.0.1";
+
+    private String databasePath = "";
+    private String entryTitle = "MainframeMate";
+    private String accessMethod = "RPC";
+    private String rpcHost = DEFAULT_RPC_HOST;
+    private int rpcPort = 12546;
+    private String rpcKey = "";
+    private String rpcOriginScheme = "chrome-extension://";
+    private String rpcOriginId = "mainframemate";
+
+    public static KeePassRpcSettings defaults() {
+        KeePassRpcSettings settings = new KeePassRpcSettings();
+        settings.databasePath = defaultDatabasePath();
+        return settings;
+    }
+
+    public String getDatabasePath() {
+        return databasePath;
+    }
+
+    public void setDatabasePath(String databasePath) {
+        this.databasePath = safe(databasePath);
+    }
+
+    public String getEntryTitle() {
+        return entryTitle;
+    }
+
+    public void setEntryTitle(String entryTitle) {
+        this.entryTitle = safe(entryTitle);
+    }
+
+    public String getAccessMethod() {
+        return accessMethod;
+    }
+
+    public void setAccessMethod(String accessMethod) {
+        this.accessMethod = safe(accessMethod).isEmpty() ? "RPC" : accessMethod;
+    }
+
+    public String getRpcHost() {
+        return rpcHost;
+    }
+
+    public void setRpcHost(String rpcHost) {
+        this.rpcHost = safe(rpcHost).isEmpty() ? DEFAULT_RPC_HOST : rpcHost.trim();
+    }
+
+    public int getRpcPort() {
+        return rpcPort;
+    }
+
+    public void setRpcPort(int rpcPort) {
+        this.rpcPort = rpcPort;
+    }
+
+    public String getRpcKey() {
+        return rpcKey;
+    }
+
+    public void setRpcKey(String rpcKey) {
+        this.rpcKey = safe(rpcKey);
+    }
+
+    public String getRpcOriginScheme() {
+        return rpcOriginScheme;
+    }
+
+    public void setRpcOriginScheme(String rpcOriginScheme) {
+        this.rpcOriginScheme = safe(rpcOriginScheme).isEmpty() ? "chrome-extension://" : rpcOriginScheme.trim();
+    }
+
+    public String getRpcOriginId() {
+        return rpcOriginId;
+    }
+
+    public void setRpcOriginId(String rpcOriginId) {
+        this.rpcOriginId = safe(rpcOriginId).isEmpty() ? "mainframemate" : rpcOriginId.trim();
+    }
+
+    public String getEffectiveRpcHost() {
+        return safe(rpcHost).isEmpty() ? DEFAULT_RPC_HOST : rpcHost.trim();
+    }
+
+    public String getEffectiveRpcOrigin() {
+        return getRpcOriginScheme() + getRpcOriginId();
+    }
+
+    public boolean isRpcAccessMethod() {
+        return "RPC".equalsIgnoreCase(accessMethod);
+    }
+
+    public KeePassRpcSettings copy() {
+        KeePassRpcSettings copy = new KeePassRpcSettings();
+        copy.databasePath = databasePath;
+        copy.entryTitle = entryTitle;
+        copy.accessMethod = accessMethod;
+        copy.rpcHost = rpcHost;
+        copy.rpcPort = rpcPort;
+        copy.rpcKey = rpcKey;
+        copy.rpcOriginScheme = rpcOriginScheme;
+        copy.rpcOriginId = rpcOriginId;
+        return copy;
+    }
+
+    private static String defaultDatabasePath() {
+        String userProfile = System.getenv("USERPROFILE");
+        if (userProfile == null || userProfile.trim().isEmpty()) {
+            return "";
+        }
+        return userProfile + File.separator + "Documents" + File.separator + "Database.kdbx";
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
+    }
+}
