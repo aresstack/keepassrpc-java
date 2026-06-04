@@ -19,7 +19,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 /**
- * Default UI-independent KeePassRPC pairing service.
+ * Default implementation of the UI-independent KeePassRPC pairing service.
+ * <p>
+ * The service performs the KeePassRPC SRP setup handshake, keeps the pairing
+ * WebSocket open while the caller obtains the one-time key, and derives the
+ * reusable SRP key returned in {@link KeePassRpcPairingResult}. It does not
+ * create dialogs, store settings, or depend on a concrete UI toolkit.
  */
 public class DefaultKeePassRpcPairingService implements KeePassRpcPairingService {
     private static final Logger LOG = Logger.getLogger(DefaultKeePassRpcPairingService.class.getName());

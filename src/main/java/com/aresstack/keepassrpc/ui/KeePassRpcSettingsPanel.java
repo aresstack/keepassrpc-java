@@ -28,7 +28,11 @@ import java.io.File;
 import java.util.UUID;
 
 /**
- * Extract the MainframeMate security settings UI for KeePassRPC access.
+ * Optional Swing settings panel for KeePassRPC configuration and pairing.
+ * <p>
+ * The panel is an adapter around the configuration and pairing APIs. Applications
+ * can embed it in a Swing settings dialog, or ignore it and call the pairing
+ * service directly.
  */
 public class KeePassRpcSettingsPanel extends JPanel {
     private final Component parentComponent;

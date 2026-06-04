@@ -1,7 +1,7 @@
 package com.aresstack.keepassrpc.pairing;
 
 /**
- * Factory methods for pairing observers.
+ * Factory methods for common {@link KeePassRpcPairingObserver} implementations.
  */
 public final class KeePassRpcPairingObservers {
     private static final KeePassRpcPairingObserver NO_OP = new KeePassRpcPairingObserver() {

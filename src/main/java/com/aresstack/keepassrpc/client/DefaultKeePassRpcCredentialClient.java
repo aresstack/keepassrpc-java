@@ -5,15 +5,33 @@ import com.aresstack.keepassrpc.pairing.KeePassRpcPairingRequest;
 import com.aresstack.keepassrpc.pairing.KeePassRpcPairingResult;
 
 /**
- * Default public credential client backed by the extracted KeePassRPC protocol client.
+ * Default {@link KeePassRpcCredentialClient} implementation backed by the
+ * KeePassRPC protocol client.
+ * <p>
+ * Create instances from persisted settings or directly from a pairing result.
  */
 public final class DefaultKeePassRpcCredentialClient implements KeePassRpcCredentialClient {
     private final KeePassRpcClient delegate;
 
+    /**
+     * Create a credential client from explicit connection and authentication values.
+     *
+     * @param host KeePassRPC host
+     * @param port KeePassRPC port
+     * @param clientId paired client identifier
+     * @param srpKey persisted SRP key returned by pairing
+     * @param origin WebSocket origin accepted by KeePassRPC
+     */
     public DefaultKeePassRpcCredentialClient(String host, int port, String clientId, String srpKey, String origin) {
         this.delegate = new KeePassRpcClient(host, port, clientId, srpKey, origin);
     }
 
+    /**
+     * Create a credential client from stored settings.
+     *
+     * @param settings settings containing endpoint, origin, and SRP key
+     * @return credential client configured from the settings
+     */
     public static DefaultKeePassRpcCredentialClient fromSettings(KeePassRpcSettings settings) {
         if (settings == null) {
             settings = KeePassRpcSettings.defaults();
@@ -26,6 +44,12 @@ public final class DefaultKeePassRpcCredentialClient implements KeePassRpcCreden
                 settings.getEffectiveRpcOrigin());
     }
 
+    /**
+     * Create a credential client directly from a successful pairing result.
+     *
+     * @param result pairing result containing endpoint, origin, client ID, and SRP key
+     * @return credential client configured from the pairing result
+     */
     public static DefaultKeePassRpcCredentialClient fromPairingResult(KeePassRpcPairingResult result) {
         if (result == null) {
             throw new IllegalArgumentException("Pairing result must not be null.");

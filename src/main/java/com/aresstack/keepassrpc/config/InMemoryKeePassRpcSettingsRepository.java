@@ -1,7 +1,10 @@
 package com.aresstack.keepassrpc.config;
 
 /**
- * Keep settings in memory for demos and tests.
+ * In-memory {@link KeePassRpcSettingsRepository} implementation for demos and tests.
+ * <p>
+ * Production applications should provide their own durable and appropriately
+ * protected persistence mechanism.
  */
 public class InMemoryKeePassRpcSettingsRepository implements KeePassRpcSettingsRepository {
     private KeePassRpcSettings settings;

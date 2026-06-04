@@ -4,9 +4,13 @@ import com.aresstack.keepassrpc.config.KeePassRpcSettings;
 
 /**
  * Immutable input for one KeePassRPC pairing run.
+ * <p>
+ * A request contains the endpoint, WebSocket origin, client identity, timeout
+ * values, and localhost fallback behavior used while trying to connect to
+ * KeePassRPC.
  */
 public final class KeePassRpcPairingRequest {
-    public static final String DEFAULT_ORIGIN = "chrome-extension://mainframemate";
+    public static final String DEFAULT_ORIGIN = "chrome-extension://keepassrpc-java";
     public static final String DEFAULT_CLIENT_ID = "MainframeMate";
     public static final String DEFAULT_CLIENT_DISPLAY_NAME = "MainframeMate";
     public static final String DEFAULT_CLIENT_DESCRIPTION = "Java KeePassRPC client";

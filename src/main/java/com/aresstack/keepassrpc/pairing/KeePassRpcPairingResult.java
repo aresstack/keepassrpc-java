@@ -1,7 +1,10 @@
 package com.aresstack.keepassrpc.pairing;
 
 /**
- * Result of a successful KeePassRPC pairing run.
+ * Immutable result of a successful KeePassRPC pairing run.
+ * <p>
+ * The SRP key returned by {@link #getSrpKey()} is the value an application should
+ * persist and reuse for future KeePassRPC authentication.
  */
 public final class KeePassRpcPairingResult {
     private final KeePassRpcEndpoint endpoint;
@@ -9,6 +12,14 @@ public final class KeePassRpcPairingResult {
     private final String clientId;
     private final String srpKey;
 
+    /**
+     * Create a pairing result.
+     *
+     * @param endpoint endpoint that accepted the pairing request
+     * @param origin WebSocket origin used during pairing
+     * @param clientId KeePassRPC client identifier
+     * @param srpKey reusable SRP key to persist
+     */
     public KeePassRpcPairingResult(KeePassRpcEndpoint endpoint, String origin, String clientId, String srpKey) {
         this.endpoint = endpoint;
         this.origin = origin;

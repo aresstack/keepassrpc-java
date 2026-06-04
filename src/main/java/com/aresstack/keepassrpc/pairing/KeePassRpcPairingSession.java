@@ -8,6 +8,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Represents an in-progress KeePassRPC pairing session.
+ * <p>
+ * A session owns the temporary WebSocket connection and SRP handshake state until
+ * {@link KeePassRpcPairingService#completePairing(KeePassRpcPairingSession, String)}
+ * completes or the session is closed.
  */
 public final class KeePassRpcPairingSession implements AutoCloseable {
     private final KeePassRpcPairingRequest request;

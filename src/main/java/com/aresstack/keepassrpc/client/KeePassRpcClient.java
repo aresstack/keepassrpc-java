@@ -5,6 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.aresstack.keepassrpc.pairing.KeePassRpcPairingRequest;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
@@ -85,7 +86,7 @@ final class KeePassRpcClient {
         this.port = port;
         this.clientId = clientId;
         this.srpKey = srpKey;
-        this.origin = (origin != null && !origin.isEmpty()) ? origin : "chrome-extension://mainframemate";
+        this.origin = (origin != null && !origin.isEmpty()) ? origin : KeePassRpcPairingRequest.DEFAULT_ORIGIN;
     }
 
     // ── Public API ──────────────────────────────────────────────────────
@@ -606,9 +607,9 @@ final class KeePassRpcClient {
         JsonObject msg = new JsonObject();
         msg.addProperty("protocol", "setup");
         msg.addProperty("version", PROTOCOL_VERSION);
-        msg.addProperty("clientTypeId", "MainframeMate");
-        msg.addProperty("clientDisplayName", "MainframeMate");
-        msg.addProperty("clientDisplayDescription", "Mainframe Data Integration");
+        msg.addProperty("clientTypeId", clientId);
+        msg.addProperty("clientDisplayName", clientId);
+        msg.addProperty("clientDisplayDescription", "Java KeePassRPC client");
         JsonArray feat = new JsonArray();
         for (String f : FEATURES) feat.add(f);
         msg.add("features", feat);

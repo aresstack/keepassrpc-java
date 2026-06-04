@@ -4,7 +4,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 /**
- * Address of a KeePassRPC WebSocket endpoint.
+ * Immutable host and port pair for a KeePassRPC WebSocket endpoint.
+ * <p>
+ * KeePassRPC usually listens on {@code 127.0.0.1:12546}. Applications can use
+ * this value object to pass explicit endpoint settings to pairing and credential
+ * clients.
  */
 public final class KeePassRpcEndpoint {
     public static final String DEFAULT_HOST = "127.0.0.1";
@@ -13,6 +17,12 @@ public final class KeePassRpcEndpoint {
     private final String host;
     private final int port;
 
+    /**
+     * Create an endpoint.
+     *
+     * @param host hostname or IP address; blank values fall back to {@link #DEFAULT_HOST}
+     * @param port TCP port in the range {@code 1..65535}
+     */
     public KeePassRpcEndpoint(String host, int port) {
         String effectiveHost = host == null || host.trim().isEmpty() ? DEFAULT_HOST : host.trim();
         validatePort(port);
@@ -20,6 +30,11 @@ public final class KeePassRpcEndpoint {
         this.port = port;
     }
 
+    /**
+     * Return the default local KeePassRPC endpoint.
+     *
+     * @return endpoint for {@code 127.0.0.1:12546}
+     */
     public static KeePassRpcEndpoint localhost() {
         return new KeePassRpcEndpoint(DEFAULT_HOST, DEFAULT_PORT);
     }
@@ -32,6 +47,11 @@ public final class KeePassRpcEndpoint {
         return port;
     }
 
+    /**
+     * Convert the endpoint to the WebSocket URI used by KeePassRPC.
+     *
+     * @return WebSocket URI such as {@code ws://127.0.0.1:12546/}
+     */
     public URI toWebSocketUri() {
         try {
             return new URI("ws://" + host + ":" + port + "/");

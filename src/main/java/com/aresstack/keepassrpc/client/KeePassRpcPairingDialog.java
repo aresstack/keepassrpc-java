@@ -31,18 +31,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 /**
- * Dialog for pairing with KeePassRPC.
+ * Optional Swing dialog for KeePassRPC pairing.
  * <p>
- * The complete SRP handshake runs on a <b>single</b> WebSocket connection:
- * <ol>
- *   <li>"Verbindung herstellen" → opens WebSocket, sends {@code identifyToServer},
- *       receives server's {@code {s, B}} and stores SRP state.
- *       KeePass shows its auth dialog with the generated key.</li>
- *   <li>User copies the key from KeePass and pastes it here.</li>
- *   <li>"Schlüssel prüfen" → computes SRP proof M using stored state + entered key,
- *       sends {@code proofToServer} on the <b>same</b> WebSocket, verifies M2.</li>
- *   <li>On success, the key is saved to settings.</li>
- * </ol>
+ * New code should prefer {@link DefaultKeePassRpcPairingService} directly and use this
+ * dialog only as a Swing adapter. The dialog starts the pairing session, asks the
+ * user for the one-time key shown by KeePass, delegates completion to the pairing
+ * service, and persists the resulting SRP key through a settings repository.
  */
 public final class KeePassRpcPairingDialog {
 
@@ -104,7 +98,7 @@ public final class KeePassRpcPairingDialog {
         JLabel instructions = new JLabel(
                 "<html><body style='width:380px'>"
               + "<b>KeePassRPC-Pairing erforderlich</b><br><br>"
-              + "Um MainframeMate mit KeePass zu verbinden, wird ein "
+              + "Um diese Anwendung mit KeePass zu verbinden, wird ein "
               + "einmaliger Pairing-Schlüssel benötigt.<br><br>"
               + "<b>So geht's:</b><br>"
               + "1. Stellen Sie sicher, dass <b>KeePass</b> geöffnet ist und das "
@@ -570,7 +564,7 @@ public final class KeePassRpcPairingDialog {
         msg.addProperty("version", PROTOCOL_VERSION);
         msg.addProperty("clientTypeId", "MainframeMate");
         msg.addProperty("clientDisplayName", "MainframeMate");
-        msg.addProperty("clientDisplayDescription", "Mainframe Data Integration Tool");
+        msg.addProperty("clientDisplayDescription", "Java KeePassRPC client");
         JsonArray feat = new JsonArray();
         for (String f : FEATURES) feat.add(f);
         msg.add("features", feat);

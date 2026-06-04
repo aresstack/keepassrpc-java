@@ -15,7 +15,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 /**
- * Launch the extracted KeePassRPC settings panel without MainframeMate.
+ * Small standalone launcher for manually testing the Swing settings panel.
  */
 public final class KeePassRpcSettingsDemo {
     private KeePassRpcSettingsDemo() {

@@ -1,7 +1,9 @@
 package com.aresstack.keepassrpc.pairing;
 
 /**
- * Categorize failures that can happen during KeePassRPC pairing.
+ * Stable categories for KeePassRPC pairing failures.
+ * <p>
+ * These values are intended for UI status handling, retry decisions, and tests.
  */
 public enum KeePassRpcPairingFailureReason {
     KEEPASS_NOT_RUNNING,

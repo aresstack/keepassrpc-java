@@ -6,19 +6,23 @@ import com.aresstack.keepassrpc.pairing.KeePassRpcPairingResult;
 import java.io.File;
 
 /**
- * Store only the settings required by the KeePassRPC configuration and pairing UI.
+ * Mutable settings object for KeePassRPC configuration.
+ * <p>
+ * The class is intentionally simple so applications can map it to their own
+ * persistence format. It can also create a {@link com.aresstack.keepassrpc.pairing.KeePassRpcPairingRequest}
+ * and apply a successful {@link com.aresstack.keepassrpc.pairing.KeePassRpcPairingResult}.
  */
 public class KeePassRpcSettings {
     public static final String DEFAULT_RPC_HOST = "127.0.0.1";
 
     private String databasePath = "";
-    private String entryTitle = "MainframeMate";
+    private String entryTitle = "KeePassRPC Java";
     private String accessMethod = "RPC";
     private String rpcHost = DEFAULT_RPC_HOST;
     private int rpcPort = 12546;
     private String rpcKey = "";
     private String rpcOriginScheme = "chrome-extension://";
-    private String rpcOriginId = "mainframemate";
+    private String rpcOriginId = "keepassrpc-java";
 
     public static KeePassRpcSettings defaults() {
         KeePassRpcSettings settings = new KeePassRpcSettings();
@@ -87,7 +91,7 @@ public class KeePassRpcSettings {
     }
 
     public void setRpcOriginId(String rpcOriginId) {
-        this.rpcOriginId = safe(rpcOriginId).isEmpty() ? "mainframemate" : rpcOriginId.trim();
+        this.rpcOriginId = safe(rpcOriginId).isEmpty() ? "keepassrpc-java" : rpcOriginId.trim();
     }
 
     public String getEffectiveRpcHost() {
