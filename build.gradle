@@ -1,34 +1,147 @@
 plugins {
-    id 'java'
-    id 'application'
+    id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+    id 'com.gradleup.nmcp' version '0.1.5'
+    id 'com.gradleup.nmcp.aggregation' version '0.1.5'
 }
 
-group = 'com.aresstack'
-version = '0.1.0-SNAPSHOT'
+group = findProperty('projectGroup') ?: 'com.aresstack'
+version = findProperty('projectVersion') ?: '0.1.0-beta.1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withSourcesJar()
+    withJavadocJar()
+}
 
 repositories {
     mavenCentral()
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+dependencies {
+    api 'com.google.code.gson:gson:2.8.9'
+
+    implementation 'org.java-websocket:Java-WebSocket:1.5.2'
+    implementation 'org.slf4j:slf4j-api:1.7.32'
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+
     if (JavaVersion.current().isJava9Compatible()) {
         options.release.set(8)
     }
 }
 
-dependencies {
-    implementation 'com.google.code.gson:gson:2.8.9'
-    implementation 'org.java-websocket:Java-WebSocket:1.5.2'
-    implementation 'org.slf4j:slf4j-api:1.7.32'
-    runtimeOnly 'ch.qos.logback:logback-classic:1.2.13'
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+
+    if (JavaVersion.current().isJava8Compatible()) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
 }
 
-application {
-    mainClassName = 'com.aresstack.keepassrpc.demo.KeePassRpcSettingsDemo'
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'com.aresstack.keepassrpc')
+    }
+    from('LICENSE') {
+        into 'META-INF'
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = findProperty('artifactId') ?: 'keepassrpc-java'
+
+            pom {
+                name = findProperty('pomName') ?: 'keepassrpc-java'
+                description = findProperty('pomDescription') ?: 'Java/Swing integration for KeePassRPC pairing and configuration.'
+                url = findProperty('pomUrl') ?: 'https://github.com/aresstack/keepassrpc-java'
+
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/license/mit/'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = findProperty('pomDeveloperId') ?: 'aresstack'
+                        name = findProperty('pomDeveloperName') ?: 'AresStack'
+                    }
+                }
+
+                scm {
+                    connection = findProperty('pomScmConnection') ?: 'scm:git:https://github.com/aresstack/keepassrpc-java.git'
+                    developerConnection = findProperty('pomScmDeveloperConnection') ?: 'scm:git:ssh://git@github.com/AresStack/keepassrpc-java.git'
+                    url = findProperty('pomScmUrl') ?: 'https://github.com/aresstack/keepassrpc-java'
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = 'localStaging'
+            url = layout.buildDirectory.dir('staging-deploy')
+        }
+    }
+}
+
+signing {
+    required {
+        !version.toString().endsWith('-SNAPSHOT') && gradle.taskGraph.allTasks.any { task ->
+            task.name == 'publish'
+                    || task.name == 'publishAllPublicationsToCentralPortal'
+                    || task.path.endsWith(':publishAllPublicationsToCentralPortal')
+        }
+    }
+
+    def signingKey = providers.gradleProperty('signingInMemoryKey').orNull
+    def signingPassword = providers.gradleProperty('signingInMemoryKeyPassword').orNull
+    if (signingKey != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    sign publishing.publications.mavenJava
+}
+
+// --------------------------------------------------------------------
+// Maven Central publishing (Sonatype Central Portal via nmcp)
+// --------------------------------------------------------------------
+//
+// Local verification:
+//   ./gradlew publishToMavenLocal
+//
+// Release upload:
+//   ./gradlew -PprojectVersion=0.1.0-beta.1 publishAllPublicationsToCentralPortal
+//
+// Required Gradle properties for a real release:
+//   centralUsername                  Sonatype Central Portal user-token
+//   centralPassword                  Sonatype Central Portal password-token
+//   signingInMemoryKey               ASCII-armored GPG private key
+//   signingInMemoryKeyPassword       GPG passphrase
+//
+// In GitHub Actions these are supplied as ORG_GRADLE_PROJECT_* environment
+// variables so they never have to be committed to the repository.
+dependencies {
+    nmcpAggregation(project(':'))
+}
+
+nmcpAggregation {
+    publishAllProjectsProbablyBreakingProjectIsolation {
+        username = providers.gradleProperty('centralUsername')
+        password = providers.gradleProperty('centralPassword')
+        publishingType = 'AUTOMATIC'
+    }
 }

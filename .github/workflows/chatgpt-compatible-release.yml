@@ -1,0 +1,99 @@
+name: ChatGPT Compatible Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-chatgpt-compatible-zip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Prepare Gradle dependency cache for ChatGPT
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GRADLE_USER_HOME="$GITHUB_WORKSPACE/.chatgpt/gradle-home"
+          mkdir -p "$GRADLE_USER_HOME"
+          bash "$GITHUB_WORKSPACE/gradlew" --no-daemon --max-workers=2 --refresh-dependencies clean build
+
+      - name: Remove Gradle runtime state from packaged cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          cache_dir="$GITHUB_WORKSPACE/.chatgpt/gradle-home"
+          rm -rf \
+            "$cache_dir/daemon" \
+            "$cache_dir/native" \
+            "$cache_dir/workers" \
+            "$cache_dir/notifications"
+          rm -rf "$cache_dir"/caches/build-cache-* "$cache_dir"/caches/journal-*
+          find "$cache_dir" -type f \( \
+            -name '*.lock' -o \
+            -name 'gc.properties' -o \
+            -name 'fileHashes.lock' -o \
+            -name 'executionHistory.lock' \
+          \) -delete
+
+      - name: Assemble ChatGPT compatible zip
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_root="$RUNNER_TEMP/keepassrpc-java-chatgpt-package"
+          rm -rf "$package_root"
+          mkdir -p "$package_root/keepassrpc-java"
+
+          rsync -a \
+            --exclude '.git' \
+            --exclude 'build' \
+            --exclude '.gradle' \
+            --exclude '.idea' \
+            --exclude '*.iml' \
+            "$GITHUB_WORKSPACE/" "$package_root/keepassrpc-java/"
+
+          mkdir -p "$GITHUB_WORKSPACE/build"
+          (cd "$package_root" && zip -qr "$GITHUB_WORKSPACE/build/keepassrpc-java-chatgpt-compatible.zip" keepassrpc-java)
+
+      - name: Verify packaged build from fresh extraction
+        shell: bash
+        run: |
+          set -euo pipefail
+          verify_dir="$RUNNER_TEMP/keepassrpc-java-chatgpt-release-verify"
+          rm -rf "$verify_dir"
+          mkdir -p "$verify_dir"
+          unzip -q "$GITHUB_WORKSPACE/build/keepassrpc-java-chatgpt-compatible.zip" -d "$verify_dir"
+          cd "$verify_dir/keepassrpc-java"
+          chmod -x gradlew || true
+          bash chatgpt-build.sh
+          CHATGPT_FULL_GRADLE_BUILD=true bash chatgpt-build.sh
+
+      - name: Publish rolling release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="chatgpt-compatible"
+          asset="build/keepassrpc-java-chatgpt-compatible.zip"
+
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --title "ChatGPT Compatible" \
+              --notes "Rolling ChatGPT-compatible source package with Gradle dependency cache."
+          fi
+
+          gh release delete-asset "$tag" "$(basename "$asset")" --yes || true
+          gh release upload "$tag" "$asset" --clobber
