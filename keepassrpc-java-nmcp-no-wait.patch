@@ -1,0 +1,13 @@
+--- a/build.gradle	2026-06-04 18:14:10.000000000 +0000
++++ b/build.gradle	2026-06-04 20:35:08.421992547 +0000
+@@ -143,5 +143,10 @@
+         username = providers.gradleProperty('centralUsername')
+         password = providers.gradleProperty('centralPassword')
+         publishingType = 'AUTOMATIC'
++        // Do not wait for Central Portal validation/publication in CI.
++        // The deployment upload is enough; final status is checked in the
++        // Sonatype Central Portal UI. A positive duration would make the
++        // nmcp task poll until publication and can fail CI on slow portal runs.
++        verificationTimeout = java.time.Duration.ZERO
+     }
+ }
