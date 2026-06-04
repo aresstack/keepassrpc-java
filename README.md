@@ -78,43 +78,49 @@ com.aresstack.keepassrpc.swing
 
 The package `com.aresstack.keepassrpc.swing` should contain optional Swing adapters only. Core pairing should not depend on Swing.
 
-## Proposed API-first pairing model
+## API-first pairing model
 
-This section describes the intended API. It is not implemented yet.
+The pairing workflow is now available as a UI-independent Java API. Swing is only an optional adapter on top of this API.
 
 ### Main entry point
 
 ```java
-KeePassRpcPairingService pairingService = new DefaultKeePassRpcPairingService(
-        keepPassRpcClient,
-        pairingRepository,
-        pairingObserver
-);
+KeePassRpcPairingService pairingService = new DefaultKeePassRpcPairingService(pairingObserver);
 
-KeePassRpcPairingResult result = pairingService.pair(
+KeePassRpcPairingSession session = pairingService.startPairing(
         KeePassRpcPairingRequest.builder()
                 .host("127.0.0.1")
                 .port(12546)
                 .origin("chrome-extension://mainframemate")
-                .clientName("MainframeMate")
+                .clientId("MainframeMate")
+                .clientDisplayName("MainframeMate")
                 .build()
+);
+
+// Show your own UI, CLI prompt or setup flow here.
+String oneTimeKeyShownByKeePass = askUserForPairingKey();
+
+KeePassRpcPairingResult result = pairingService.completePairing(
+        session,
+        oneTimeKeyShownByKeePass
 );
 ```
 
 The use case should own the pairing process. The UI should only display progress, ask the user for confirmation when needed, and persist the final result through an application-owned repository.
 
-### Proposed core interfaces
+### Implemented core interfaces
 
 ```java
 public interface KeePassRpcPairingService {
-    KeePassRpcPairingResult pair(KeePassRpcPairingRequest request);
+    KeePassRpcPairingSession startPairing(KeePassRpcPairingRequest request);
+    KeePassRpcPairingResult completePairing(KeePassRpcPairingSession session, String pairingKey);
+    KeePassRpcPairingResult pair(KeePassRpcPairingRequest request, KeePassRpcPairingKeyProvider keyProvider);
 }
 ```
 
 ```java
-public interface KeePassRpcPairingRepository {
-    KeePassRpcPairingState load();
-    void save(KeePassRpcPairingState state);
+public interface KeePassRpcPairingKeyProvider {
+    String requestPairingKey(KeePassRpcPairingSession session);
 }
 ```
 
@@ -122,29 +128,25 @@ public interface KeePassRpcPairingRepository {
 public interface KeePassRpcPairingObserver {
     void onPairingStarted(KeePassRpcPairingRequest request);
     void onKeePassConnectionWaiting(KeePassRpcEndpoint endpoint);
-    void onKeePassUserConfirmationRequired(KeePassRpcPairingChallenge challenge);
+    void onKeePassUserConfirmationRequired(KeePassRpcPairingSession session);
     void onPairingSucceeded(KeePassRpcPairingResult result);
-    void onPairingFailed(KeePassRpcPairingFailure failure);
-}
-```
-
-```java
-public interface KeePassRpcConnectionProbe {
-    KeePassRpcConnectionStatus check(KeePassRpcEndpoint endpoint);
+    void onPairingFailed(KeePassRpcPairingException failure);
 }
 ```
 
 ```java
 public interface KeePassRpcCredentialClient extends AutoCloseable {
-    void connect(KeePassRpcConnectionConfig config);
-    KeePassRpcPairingResult pair(KeePassRpcPairingRequest request);
+    void connect();
     String getUserName(String entryTitle);
     String getPassword(String entryTitle);
     String getDatabaseFileName();
+    void addLogin(String title, String userName, String password, String url);
+    void updateLogin(String title, String userName, String password);
+    String listEntries();
 }
 ```
 
-### Proposed value objects
+### Implemented value objects
 
 ```java
 public final class KeePassRpcEndpoint {
@@ -157,8 +159,12 @@ public final class KeePassRpcEndpoint {
 public final class KeePassRpcPairingRequest {
     private final KeePassRpcEndpoint endpoint;
     private final String origin;
-    private final String clientName;
-    private final String existingSrpKey;
+    private final String clientId;
+    private final String clientDisplayName;
+    private final String clientDisplayDescription;
+    private final int connectTimeoutSeconds;
+    private final int responseTimeoutSeconds;
+    private final boolean tryLocalhostFallbacks;
 }
 ```
 
@@ -168,16 +174,13 @@ public final class KeePassRpcPairingResult {
     private final String origin;
     private final String clientId;
     private final String srpKey;
-    private final String databaseFileName;
 }
 ```
 
 ```java
-public final class KeePassRpcPairingFailure {
+public class KeePassRpcPairingException extends RuntimeException {
     private final KeePassRpcEndpoint endpoint;
     private final KeePassRpcPairingFailureReason reason;
-    private final String message;
-    private final Throwable cause;
 }
 ```
 
@@ -189,7 +192,9 @@ public enum KeePassRpcPairingFailureReason {
     USER_CANCELLED,
     AUTHENTICATION_FAILED,
     TIMEOUT,
-    PROTOCOL_ERROR
+    PROTOCOL_ERROR,
+    INTERRUPTED,
+    INTERNAL_ERROR
 }
 ```
 
@@ -218,7 +223,7 @@ That allows the same pairing workflow to be reused by:
 
 ## Proposed Swing adapter
 
-The current `KeePassRpcPairingDialog` should later become an adapter around the core pairing API:
+The current `KeePassRpcPairingDialog` is now an adapter around the core pairing API:
 
 ```java
 public final class SwingKeePassRpcPairingController {
@@ -226,10 +231,13 @@ public final class SwingKeePassRpcPairingController {
     private final KeePassRpcSettingsRepository settingsRepository;
 
     public KeePassRpcPairingResult startPairing(Component parent, KeePassRpcSettings settings) {
-        // Build a request from settings.
-        // Show progress through a dialog observer.
-        // Persist the returned pairing state.
-        throw new UnsupportedOperationException("Design only");
+        KeePassRpcPairingRequest request = settings.toPairingRequest();
+        KeePassRpcPairingSession session = pairingService.startPairing(request);
+        String oneTimeKey = showPairingKeyInput(parent);
+        KeePassRpcPairingResult result = pairingService.completePairing(session, oneTimeKey);
+        settings.applyPairingResult(result);
+        settingsRepository.save(settings);
+        return result;
     }
 }
 ```
@@ -356,7 +364,7 @@ The Swing UI itself only needs the JDK.
 
 ## Current status
 
-This repository is a Maven Central-oriented Java library extracted from MainframeMate. The next implementation step should be the API-first pairing layer described above. After that, the Swing dialog can be refactored into a thin adapter around the API.
+This repository is a Maven Central-oriented Java library extracted from MainframeMate. The API-first pairing layer is implemented and the Swing pairing dialog delegates to it. The remaining release-hardening work is mainly cleanup, tests against a real KeePassRPC instance, and additional documentation.
 
 
 ## Build and release automation

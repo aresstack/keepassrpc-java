@@ -1,5 +1,8 @@
 package com.aresstack.keepassrpc.config;
 
+import com.aresstack.keepassrpc.pairing.KeePassRpcPairingRequest;
+import com.aresstack.keepassrpc.pairing.KeePassRpcPairingResult;
+
 import java.io.File;
 
 /**
@@ -99,6 +102,27 @@ public class KeePassRpcSettings {
         return "RPC".equalsIgnoreCase(accessMethod);
     }
 
+    public KeePassRpcPairingRequest toPairingRequest() {
+        return KeePassRpcPairingRequest.fromSettings(this);
+    }
+
+    public void applyPairingResult(KeePassRpcPairingResult result) {
+        if (result == null) {
+            return;
+        }
+        setAccessMethod("RPC");
+        setRpcHost(result.getEndpoint().getHost());
+        setRpcPort(result.getEndpoint().getPort());
+        setRpcKey(result.getSrpKey());
+        applyOrigin(result.getOrigin());
+    }
+
+    public KeePassRpcSettings withPairingResult(KeePassRpcPairingResult result) {
+        KeePassRpcSettings copy = copy();
+        copy.applyPairingResult(result);
+        return copy;
+    }
+
     public KeePassRpcSettings copy() {
         KeePassRpcSettings copy = new KeePassRpcSettings();
         copy.databasePath = databasePath;
@@ -110,6 +134,21 @@ public class KeePassRpcSettings {
         copy.rpcOriginScheme = rpcOriginScheme;
         copy.rpcOriginId = rpcOriginId;
         return copy;
+    }
+
+    private void applyOrigin(String origin) {
+        String safeOrigin = safe(origin).trim();
+        if (safeOrigin.isEmpty()) {
+            return;
+        }
+        int separator = safeOrigin.indexOf("://");
+        if (separator < 0) {
+            setRpcOriginScheme("chrome-extension://");
+            setRpcOriginId(safeOrigin);
+            return;
+        }
+        setRpcOriginScheme(safeOrigin.substring(0, separator + 3));
+        setRpcOriginId(safeOrigin.substring(separator + 3));
     }
 
     private static String defaultDatabasePath() {

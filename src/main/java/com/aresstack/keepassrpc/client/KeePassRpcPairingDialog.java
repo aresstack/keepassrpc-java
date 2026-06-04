@@ -7,6 +7,11 @@ import com.google.gson.JsonParser;
 import com.aresstack.keepassrpc.config.KeePassRpcSettings;
 import com.aresstack.keepassrpc.config.KeePassRpcSettingsRepository;
 import com.aresstack.keepassrpc.config.InMemoryKeePassRpcSettingsRepository;
+import com.aresstack.keepassrpc.pairing.DefaultKeePassRpcPairingService;
+import com.aresstack.keepassrpc.pairing.KeePassRpcPairingException;
+import com.aresstack.keepassrpc.pairing.KeePassRpcPairingRequest;
+import com.aresstack.keepassrpc.pairing.KeePassRpcPairingResult;
+import com.aresstack.keepassrpc.pairing.KeePassRpcPairingSession;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
@@ -85,7 +90,8 @@ public final class KeePassRpcPairingDialog {
         String host = settings.getEffectiveRpcHost();
         String origin = settings.getEffectiveRpcOrigin();
 
-        final AtomicReference<SrpState> stateRef = new AtomicReference<SrpState>(null);
+        final DefaultKeePassRpcPairingService pairingService = new DefaultKeePassRpcPairingService();
+        final AtomicReference<KeePassRpcPairingSession> sessionRef = new AtomicReference<KeePassRpcPairingSession>(null);
 
         // ── Build dialog content ─────────────────────────────────────────
         JPanel panel = new JPanel(new GridBagLayout());
@@ -145,7 +151,7 @@ public final class KeePassRpcPairingDialog {
         dialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         dialog.addWindowListener(new WindowAdapter() {
             @Override public void windowClosing(WindowEvent e) {
-                closeSrpState(stateRef);
+                closePairingSession(sessionRef);
                 optionPane.setValue(cancelButton);
                 dialog.dispose();
             }
@@ -160,7 +166,17 @@ public final class KeePassRpcPairingDialog {
 
             new SwingWorker<String, Void>() {
                 @Override protected String doInBackground() {
-                    return openAndIdentify(host, port, origin, stateRef);
+                    try {
+                        KeePassRpcPairingRequest request = KeePassRpcPairingRequest.builder()
+                                .host(host)
+                                .port(port)
+                                .origin(origin)
+                                .build();
+                        sessionRef.set(pairingService.startPairing(request));
+                        return null;
+                    } catch (KeePassRpcPairingException ex) {
+                        return ex.getMessage();
+                    }
                 }
                 @Override protected void done() {
                     try {
@@ -201,8 +217,8 @@ public final class KeePassRpcPairingDialog {
                 statusLabel.setText("Bitte geben Sie den SRP-Schlüssel ein.");
                 return;
             }
-            SrpState state = stateRef.get();
-            if (state == null || state.ws == null) {
+            KeePassRpcPairingSession session = sessionRef.get();
+            if (session == null) {
                 statusLabel.setForeground(Color.RED);
                 statusLabel.setText("Bitte zuerst \"Verbindung herstellen\" klicken.");
                 return;
@@ -215,7 +231,13 @@ public final class KeePassRpcPairingDialog {
 
             new SwingWorker<String, Void>() {
                 @Override protected String doInBackground() {
-                    return verifySrpKey(state, key);
+                    try {
+                        KeePassRpcPairingResult result = pairingService.completePairing(session, key);
+                        sessionRef.set(null);
+                        return result.getSrpKey();
+                    } catch (KeePassRpcPairingException ex) {
+                        return ex.getMessage();
+                    }
                 }
                 @Override protected void done() {
                     try {
@@ -233,23 +255,23 @@ public final class KeePassRpcPairingDialog {
                             statusLabel.setText(result != null ? result : "Unbekannter Fehler.");
                             validatedKey.set(null);
                             okButton.setEnabled(false);
-                            closeSrpState(stateRef);
+                            closePairingSession(sessionRef);
                             connectButton.setEnabled(true);
                         }
                     } catch (Exception ex) {
                         statusLabel.setForeground(Color.RED);
                         statusLabel.setText("Fehler: " + ex.getMessage());
                         okButton.setEnabled(false);
-                        closeSrpState(stateRef);
+                        closePairingSession(sessionRef);
                         connectButton.setEnabled(true);
                     }
-                    testButton.setEnabled(!keyField.getText().trim().isEmpty() && stateRef.get() != null);
+                    testButton.setEnabled(!keyField.getText().trim().isEmpty() && sessionRef.get() != null);
                 }
             }.execute();
         });
 
         okButton.addActionListener(e -> {
-            closeSrpState(stateRef);
+            closePairingSession(sessionRef);
             // Save key to settings IMMEDIATELY on OK click
             String key = validatedKey.get();
             if (key != null) {
@@ -262,13 +284,13 @@ public final class KeePassRpcPairingDialog {
             dialog.dispose();
         });
         cancelButton.addActionListener(e -> {
-            closeSrpState(stateRef);
+            closePairingSession(sessionRef);
             optionPane.setValue(cancelButton);
             dialog.dispose();
         });
 
         dialog.setVisible(true);
-        closeSrpState(stateRef);
+        closePairingSession(sessionRef);
 
         Object value = optionPane.getValue();
         if (value == okButton && validatedKey.get() != null) {
@@ -535,10 +557,10 @@ public final class KeePassRpcPairingDialog {
     //  Helpers
     // ═════════════════════════════════════════════════════════════════════
 
-    private static void closeSrpState(AtomicReference<SrpState> ref) {
-        SrpState state = ref.getAndSet(null);
-        if (state != null && state.ws != null) {
-            try { state.ws.close(); } catch (Exception ignored) {}
+    private static void closePairingSession(AtomicReference<KeePassRpcPairingSession> ref) {
+        KeePassRpcPairingSession session = ref.getAndSet(null);
+        if (session != null) {
+            session.close();
         }
     }
 
